@@ -8,6 +8,7 @@ const translations: Record<string, Record<Locale, string>> = {
   "nav.vineyards": { en: "Vineyards", es: "Viñedos" },
   "nav.time_entries": { en: "Time Entries", es: "Registro de Horas" },
   "nav.messages": { en: "Messages", es: "Mensajes" },
+  "nav.sms_simulator": { en: "SMS Simulator", es: "Simulador SMS" },
   "nav.anomalies": { en: "Anomalies", es: "Anomalías" },
   "nav.approvals": { en: "Approvals", es: "Aprobaciones" },
   "nav.reports": { en: "Reports", es: "Reportes" },

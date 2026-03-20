@@ -155,17 +155,18 @@ Deno.serve(async (req: Request) => {
         .map((d) => `${d} ${hoursByDay[d]}h`)
         .join(", ");
 
-      // Send bilingual SMS
-      if (worker.phone) {
+      // Send bilingual SMS (skip test/fake numbers like +1555*)
+      const isRealPhone = worker.phone && !worker.phone.startsWith("+1555");
+      if (isRealPhone) {
         const lang = worker.language || "es";
         let message: string;
 
         if (lang === "en") {
           message =
-            `Weekly summary: You logged ${totalHours}h this week for $${totalPay.toFixed(2)}.\n${dailyBreakdown}\nReply with C if this is correct. Otherwise reply with your changes.`;
+            `Weekly summary: You logged ${totalHours}h this week for $${totalPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.\n${dailyBreakdown}\nReply with C if this is correct. Otherwise reply with your changes.`;
         } else {
           message =
-            `Resumen semanal: Registraste ${totalHours}h esta semana por $${totalPay.toFixed(2)}.\n${dailyBreakdown}\nResponde con C si es correcto. De lo contrario, responde con tus cambios.`;
+            `Resumen semanal: Registraste ${totalHours}h esta semana por $${totalPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.\n${dailyBreakdown}\nResponde con C si es correcto. De lo contrario, responde con tus cambios.`;
         }
 
         const smsResponse = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {

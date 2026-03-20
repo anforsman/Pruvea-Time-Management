@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Users, UserCog, MapPin, Clock, MessageSquare, Home, Menu, X, AlertTriangle, ClipboardCheck, TrendingUp, Globe, BarChart3, Settings } from "lucide-react";
+import { Users, UserCog, MapPin, Clock, MessageSquare, Home, Menu, X, AlertTriangle, ClipboardCheck, TrendingUp, Globe, BarChart3, Settings, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { useLocale } from "@/lib/i18n-context";
 import { t } from "@/lib/i18n";
@@ -15,6 +15,7 @@ const navItems = [
   { href: "/vineyards", i18nKey: "nav.vineyards", icon: MapPin },
   { href: "/time-entries", i18nKey: "nav.time_entries", icon: Clock },
   { href: "/messages", i18nKey: "nav.messages", icon: MessageSquare },
+  { href: "/sms-simulator", i18nKey: "nav.sms_simulator", icon: Smartphone },
   { href: "/anomalies", i18nKey: "nav.anomalies", icon: AlertTriangle },
   { href: "/approvals", i18nKey: "nav.approvals", icon: ClipboardCheck },
   { href: "/reports", i18nKey: "nav.reports", icon: BarChart3 },
