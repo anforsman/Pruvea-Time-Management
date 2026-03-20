@@ -24,14 +24,11 @@ function getSundayFromMonday(monday: string): string {
 }
 
 /** Day-of-week abbreviations keyed by JS getDay() index. */
-const DAY_ABBR: Record<number, string> = {
-  0: "Sun",
-  1: "Mon",
-  2: "Tue",
-  3: "Wed",
-  4: "Thu",
-  5: "Fri",
-  6: "Sat",
+const DAY_ABBR_EN: Record<number, string> = {
+  0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat",
+};
+const DAY_ABBR_ES: Record<number, string> = {
+  0: "Dom", 1: "Lun", 2: "Mar", 3: "Mié", 4: "Jue", 5: "Vie", 6: "Sáb",
 };
 
 Deno.serve(async (req: Request) => {
@@ -140,33 +137,35 @@ Deno.serve(async (req: Request) => {
         console.error(`Error logging approval for worker ${worker.id}:`, logErr);
       }
 
-      // Build daily breakdown
+      // Build daily breakdown using worker's language
+      const lang = worker.language || "es";
+      const dayAbbr = lang === "es" ? DAY_ABBR_ES : DAY_ABBR_EN;
       const hoursByDay: Record<string, number> = {};
       for (const entry of entryList) {
         const entryDate = new Date(entry.date + "T00:00:00");
-        const dayAbbr = DAY_ABBR[entryDate.getDay()];
-        hoursByDay[dayAbbr] = (hoursByDay[dayAbbr] || 0) + Number(entry.hours);
+        const abbr = dayAbbr[entryDate.getDay()];
+        hoursByDay[abbr] = (hoursByDay[abbr] || 0) + Number(entry.hours);
       }
 
-      // Order breakdown Mon-Sun
-      const orderedDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const orderedDays = lang === "es"
+        ? ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+        : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const dailyBreakdown = orderedDays
         .filter((d) => hoursByDay[d] !== undefined)
         .map((d) => `${d} ${hoursByDay[d]}h`)
         .join(", ");
 
-      // Send bilingual SMS (skip test/fake numbers like +1555*)
+      const payFormatted = totalPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      // Send SMS (skip test/fake numbers like +1555*)
       const isRealPhone = worker.phone && !worker.phone.startsWith("+1555");
       if (isRealPhone) {
-        const lang = worker.language || "es";
         let message: string;
 
         if (lang === "en") {
-          message =
-            `Weekly summary: You logged ${totalHours}h this week for $${totalPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.\n${dailyBreakdown}\nReply with C if this is correct. Otherwise reply with your changes.`;
+          message = `Weekly summary: You logged ${totalHours}h this week for $${payFormatted}.\n${dailyBreakdown}\nReply with C if this is correct. Otherwise reply with your changes.`;
         } else {
-          message =
-            `Resumen semanal: Registraste ${totalHours}h esta semana por $${totalPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.\n${dailyBreakdown}\nResponde con C si es correcto. De lo contrario, responde con tus cambios.`;
+          message = `Resumen semanal: Registraste ${totalHours}h esta semana por $${payFormatted}.\n${dailyBreakdown}\nResponde con C si es correcto. De lo contrario, responde con tus cambios.`;
         }
 
         const smsResponse = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
