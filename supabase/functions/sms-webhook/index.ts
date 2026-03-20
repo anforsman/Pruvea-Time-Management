@@ -864,10 +864,30 @@ async function parseAndCreateEntries(
     .map((t: Record<string, unknown>) => `${t.name} (aliases: ${(t.aliases as string[])?.join(", ") ?? "none"})`)
     .join("\n");
 
+  // Fetch recent conversation history for context (inbound only to avoid JSON noise)
+  const { data: recentMsgs } = await supabase
+    .from("raw_messages")
+    .select("body, direction, created_at")
+    .eq("worker_id", worker.id)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  let conversationContext = "";
+  if (recentMsgs && recentMsgs.length > 1) {
+    // Show recent messages but truncate long system replies to avoid JSON in context
+    const history = [...recentMsgs].reverse().slice(0, -1).map((m: Record<string, unknown>) => {
+      const role = m.direction === "inbound" ? "Worker" : "System";
+      const body = String(m.body ?? "");
+      const truncated = body.length > 120 ? body.slice(0, 120) + "..." : body;
+      return `${role}: ${truncated}`;
+    }).join("\n");
+    conversationContext = `\nRecent conversation (for context only — do NOT re-extract old entries):\n${history}\n\nIf the current message references previous messages (e.g. "same thing today", "actually 7h not 8", "block B not A"), use the context to understand it.\n`;
+  }
+
   const systemPrompt = `You are a time entry parser for vineyard workers. Extract structured time entries from informal messages in English or Spanish. Detect the language of the incoming message and always provide clarification questions in the same language the worker used. A single message may contain MULTIPLE entries (different days, blocks, or tasks).
 
 Today is ${today} (${dayOfWeek}).
-
+${conversationContext}
 Available blocks:
 ${blockList || "None configured yet"}
 
