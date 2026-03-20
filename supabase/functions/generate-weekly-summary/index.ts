@@ -157,9 +157,8 @@ Deno.serve(async (req: Request) => {
 
       const payFormatted = totalPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-      // Send SMS (skip test/fake numbers like +1555*)
-      const isRealPhone = worker.phone && !worker.phone.startsWith("+1555");
-      if (isRealPhone) {
+      // Build message in worker's language
+      if (worker.phone) {
         let message: string;
 
         if (lang === "en") {
@@ -168,25 +167,33 @@ Deno.serve(async (req: Request) => {
           message = `Resumen semanal: Registraste ${totalHours}h esta semana por $${payFormatted}.\n${dailyBreakdown}\nResponde con C si es correcto. De lo contrario, responde con tus cambios.`;
         }
 
-        const smsResponse = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({
-            to: worker.phone,
-            body: message,
-            worker_id: worker.id,
-          }),
+        // Log outbound message directly (edge-to-edge function calls are unreliable)
+        await supabase.from("raw_messages").insert({
+          twilio_sid: `SUMMARY_${Date.now()}_${worker.id.slice(0, 8)}`,
+          from_number: "system",
+          body: message,
+          worker_id: worker.id,
+          direction: "outbound",
         });
 
-        const smsResult = await smsResponse.json().catch(() => null);
-        if (smsResponse.ok) {
-          smsSent++;
-        } else {
-          smsErrors.push(`worker=${worker.id} status=${smsResponse.status} result=${JSON.stringify(smsResult)}`);
+        // Fire-and-forget actual SMS delivery
+        const isRealPhone = !worker.phone.startsWith("+1555");
+        if (isRealPhone) {
+          fetch(`${supabaseUrl}/functions/v1/send-sms`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              to: worker.phone,
+              body: message,
+              worker_id: worker.id,
+            }),
+          }).catch((err) => console.error("send-sms error:", err));
         }
+
+        smsSent++;
       }
 
       // Set conversation_state to 'awaiting_confirmation'
